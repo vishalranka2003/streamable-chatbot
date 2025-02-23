@@ -1,26 +1,21 @@
 // app/api/chat/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // Always use environment variables for sensitive keys
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
 
-    const stream = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
-      stream: true,
-    });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const streamingResponse = await model.generateContentStream(prompt);
 
-    // Create a ReadableStream for the response
     const responseStream = new ReadableStream({
       async start(controller) {
+        const stream = streamingResponse.stream;
         for await (const chunk of stream) {
-          const content = chunk.choices?.[0]?.delta?.content || "";
+          const content = chunk.text();
           if (content) {
             controller.enqueue(content);
           }
